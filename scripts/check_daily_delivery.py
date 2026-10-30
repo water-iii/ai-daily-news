@@ -69,7 +69,7 @@ def main():
 
     output_path = os.environ["GITHUB_OUTPUT"]
     with open(output_path, "a", encoding="utf-8") as output:
-        output.write(f"skip={'true' if skip else 'false'}\\n")
+        output.write(f"skip={'true' if skip else 'false'}\n")
 
 
 if __name__ == "__main__":
