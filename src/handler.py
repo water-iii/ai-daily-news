@@ -5,6 +5,7 @@ import os
 import json
 import yaml
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 
@@ -39,7 +40,7 @@ def _generate_audio_if_configured(digest, date_str):
 
 
 def run(hours=24):
-    date_str = datetime.now().strftime("%Y-%m-%d")
+    date_str = datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d")
     print(f"=== AI Daily News: {date_str} ===\n")
 
     print("[1/5] Collecting RSS feeds...")
@@ -54,8 +55,7 @@ def run(hours=24):
     print(f"Total items collected: {len(all_items)}\n")
 
     if not all_items:
-        print("No items found. Try increasing the time window.")
-        return
+        raise RuntimeError("No RSS or X items were collected; refusing to report success.")
 
     os.makedirs("data", exist_ok=True)
     raw_path = f"data/raw-{date_str}.json"
@@ -98,8 +98,11 @@ def run(hours=24):
     publishers_env = os.getenv("PUBLISHERS")
     names = [n.strip() for n in publishers_env.split(",")] if publishers_env else None
     publishers = active_publishers(names)
+    if not publishers:
+        raise RuntimeError("No publisher is configured. Check PUBLISHERS and publisher credentials.")
 
     print(f"\n[5/5] Publishing via: {[p.NAME for p in publishers]}")
+    publish_errors = []
     for pub in publishers:
         try:
             result = pub.publish(
@@ -107,7 +110,11 @@ def run(hours=24):
             )
             print(f"  [{pub.NAME}] {result}")
         except Exception as e:
-            print(f"  [{pub.NAME}] failed: {e}")
+            publish_errors.append(f"{pub.NAME}: {type(e).__name__}: {e}")
+            print(f"  [{pub.NAME}] failed: {type(e).__name__}: {e}")
+
+    if publish_errors:
+        raise RuntimeError("One or more publishers failed: " + "; ".join(publish_errors))
 
     print("\n" + "=" * 50)
     print(digest)
