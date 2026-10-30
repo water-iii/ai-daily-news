@@ -60,3 +60,18 @@ jobs:
           ENABLE_CONTENT_FILTER: ${{ vars.ENABLE_CONTENT_FILTER }}
           DISABLE_AUDIO: ${{ vars.DISABLE_AUDIO }}
           SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
+      - name: Notify Telegram when the workflow fails
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Telegram credentials are unavailable; cannot send failure alert."
+            exit 0
+          fi
+          curl --fail --silent --show-error --retry 2 --retry-delay 3 \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=⚠️ AI Daily Digest failed. Check GitHub Actions: ${RUN_URL}"
